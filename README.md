@@ -2,7 +2,9 @@
 
 This workspace uses a merged `compile_commands.json` so Visual Studio Code IntelliSense can see all package compile flags and include paths.
 
-## 1. Configure VS Code
+## Quick start (one-time setup)
+
+### 1. Configure VS Code
 
 Make sure the workspace file `.vscode/c_cpp_properties.json` contains:
 
@@ -27,59 +29,73 @@ Make sure the workspace file `.vscode/c_cpp_properties.json` contains:
 
 This points IntelliSense at the workspace-level build database.
 
-## 2. Generate package compile databases
-
-Build the packages with CMake compile command export enabled.
-
-From the workspace root:
+### 2. Make scripts executable
 
 ```bash
-cd ${workspaceFolder}
+chmod +x merge.py build.sh
+```
+
+---
+
+## Daily workflow — one command
+
+### Option A: VS Code task (recommended)
+
+Press **`Ctrl+Shift+B`** (or **`Cmd+Shift+B`** on macOS) to build **all packages** and auto-merge the compile commands.
+
+To build a **specific package**: `Ctrl+Shift+P` → **Tasks: Run Task** → **ROS: Build (specific package) & Merge IntelliSense`.
+
+### Option B: Terminal
+
+```bash
+./build.sh                          # Build all packages
+./build.sh --packages-select my_pkg # Build a single package
+```
+
+That's it. The script handles everything:
+
+1. Runs `colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`
+2. Automatically runs `merge.py` to consolidate all compile databases
+3. Touches the merged file to signal the C/C++ extension
+
+If IntelliSense doesn't pick up the changes automatically, run:
+- `Ctrl+Shift+P` → **C/C++: Reset IntelliSense Database**
+
+---
+
+## Advanced
+
+### Individual steps (if you prefer doing them manually)
+
+```bash
+# Step 1 — Build
 colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-```
 
-If you only want to rebuild one package, use:
-
-```bash
-colcon build --packages-select test_robot_move --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-```
-
-## 3. Merge compile command files
-Place in the root of the project and add execution perms to the script file:
-```bash
-chmod +x merge.py
-```
-
-Run the script:
-```bash
+# Step 2 — Merge
 ./merge.py
 ```
 
-It collects `build/*/compile_commands.json` files and writes a merged database to:
+### Reset IntelliSense
 
-- `build/compile_commands.json`
+If the C/C++ extension doesn't detect the change:
+- `Ctrl+Shift+P` → **C/C++: Reset IntelliSense Database**
+- Or run the **ROS: Reset IntelliSense Database** task from the command palette
+- Or just reload the VS Code window
 
-## 4. Reload VS Code
+---
 
-After creating the merged file:
-1. Reload the VS Code window
-2. Re-open your source file
-3. Wait for the C/C++ extension to finish indexing
+## When to rebuild
 
-Or:
-- Command palette
-- Run
-- `C/C++: Reset IntelliSense Database`
-
-## 5. When to rerun
-
-Re-run the merge script whenever:
+Run `./build.sh` (or `Ctrl+Shift+B`) whenever:
 
 - you rebuild a package
 - new source files are added
 - compiler flags or dependencies change
 
-## 6. Notes
+---
 
-- The merge file must contain the translation unit you are editing.
+## Notes
+
+- The merged file must contain the translation unit you are editing.
 - If you still see `#include` errors, confirm the package build produced a `compile_commands.json` and that the file is listed in `build/compile_commands.json`.
+- All extra arguments passed to `build.sh` are forwarded to `colcon build`, so `./build.sh --packages-select my_pkg --cmake-clean-first` works too.
